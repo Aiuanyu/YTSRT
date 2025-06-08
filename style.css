@@ -1,0 +1,231 @@
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 20px;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+/* Remove bottom margin from individual areas as they are now in columns */
+.input-area, .video-area, .controls, .subtitle-area {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 15px; /* Keep some margin between items in the same column */
+}
+
+/* Ensure last item in each column doesn't have bottom margin */
+.left-column > div:last-child,
+.right-column > div:last-child {
+    margin-bottom: 0;
+}
+
+/* Main container for two-column layout */
+.main-container {
+    display: flex;
+    gap: 20px; /* Space between columns */
+}
+
+/* Left column styling */
+.left-column {
+    flex: 0 0 70%; /* Takes up 70% width, doesn't grow or shrink */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Right column styling */
+.right-column {
+    flex: 0 0 calc(30% - 20px); /* Takes up 30% width minus the gap, doesn't grow or shrink */
+    display: flex; /* Make it a flex container to manage its child */
+    flex-direction: column;
+}
+
+/* Make subtitle area fill the right column */
+.subtitle-area {
+    flex-grow: 1; /* Allow subtitle area to grow */
+    display: flex;
+    flex-direction: column; /* Stack title, list, button vertically */
+    min-height: 0; /* Necessary for flex children overflow */
+}
+
+.input-area input[type="text"] {
+    width: 70%;
+    padding: 8px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.input-area button {
+    padding: 8px 15px;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.input-area button:hover {
+    background-color: #4cae4c;
+}
+
+.video-area #player {
+    width: 100%;
+    height: 400px; /* 可根據需要調整 */
+}
+
+.controls ul {
+    list-style: none;
+    padding: 0;
+}
+
+.controls li {
+    margin-bottom: 5px;
+}
+
+.subtitle-area ul {
+    list-style: none;
+    padding: 0;
+    /* Make the list scrollable */
+    max-height: 400px; /* Match video height initially, adjust as needed */
+    overflow-y: auto; /* Enable vertical scrolling */
+    flex-grow: 1; /* Allow list to take available space */
+    min-height: 0; /* Necessary for flex children overflow */
+    border: 1px solid #eee; /* Add a border around the scrollable list */
+    border-radius: 4px;
+    margin-top: 10px; /* Space between title and list */
+    margin-bottom: 10px; /* Space between list and button */
+}
+
+.subtitle-area li {
+    background-color: #f9f9f9;
+    margin-bottom: 8px; /* Increase margin slightly */
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 10px 12px; /* Adjust padding */
+    display: flex; /* Use flexbox for main layout */
+    align-items: flex-start; /* Align items to the top */
+    gap: 8px; /* Add gap between number, content, and button */
+}
+
+/* Remove specific span cursor rule, handled by input click now */
+/* .subtitle-area li span {
+     cursor: pointer;
+} */
+
+.subtitle-area li:hover {
+    background-color: #eee; /* Add hover effect */
+}
+
+.subtitle-area button {
+    padding: 10px 20px;
+    background-color: #0275d8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.subtitle-area button:hover {
+    background-color: #025aa5;
+}
+/* Style for the currently active subtitle item */
+.subtitle-area li.active {
+    background-color: #dff0d8; /* Light green background */
+    border-color: #c3e6cb;
+    font-weight: bold;
+}
+/* Style for the delete button */
+.delete-btn {
+    background: none;
+    border: none;
+    color: #dc3545; /* Red color */
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 5px; /* Minimal padding */
+    line-height: 1; /* Ensure tight fit */
+    margin-left: 10px; /* Space between text and button */
+}
+
+.delete-btn:hover {
+    color: #a71d2a; /* Darker red on hover */
+}
+/* --- Styles for Editable Subtitle Items --- */
+
+.subtitle-area li > *:nth-child(1) { /* Style for the number */
+    flex-shrink: 0; /* Prevent number from shrinking */
+    padding-top: 5px; /* Align number better with first line of text */
+    font-weight: bold;
+}
+
+.subtitle-area li > *:nth-child(2) { /* Style for the time/text container */
+    flex-grow: 1; /* Allow content to take available space */
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Space between time row and text area */
+}
+
+.time-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.time-input {
+    font-family: monospace; /* Use monospace font for time */
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    width: 110px; /* Fixed width for time inputs */
+    text-align: center;
+    font-size: 0.9em;
+    cursor: pointer; /* Indicate clickable for seeking */
+}
+
+.time-input:disabled {
+    background-color: #eee;
+    cursor: not-allowed;
+}
+
+.time-arrow {
+    font-weight: bold;
+}
+
+.subtitle-text-input {
+    width: 100%; /* Take full width of its container */
+    height: 7em;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-family: inherit; /* Use body font */
+    font-size: 0.95em;
+    resize: vertical; /* Allow vertical resize */
+    box-sizing: border-box; /* Include padding/border in width */
+}
+
+.delete-btn {
+    align-self: flex-start; /* Align button to the top */
+    margin-left: 0; /* Remove previous margin */
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+/* Style for the file input area */
+.file-input-area {
+    margin-bottom: 10px; /* Space below file input */
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+}
+
+.file-input-area label {
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.file-input-area input[type="file"] {
+    font-size: 0.9em;
+}
