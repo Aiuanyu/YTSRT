@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT-SRT 影片播放器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>YT-SRT 影片播放器</h1>
+
+    <div class="yt-srt-container">
+        <div class="video-section">
+            <div id="player"></div>
+            <div id="subtitle-display">&nbsp;<br>&nbsp;</div> <!-- 預先加一個 &nbsp; 避免初始跳動 --><!-- GHSRobert: Gemini 娘加 1 個我再加 1 個 -->
+        </div>
+
+        <div class="input-section">
+            <div>
+                <label for="youtube-url">YouTube 影片網址:</label>
+                <input type="text" id="youtube-url" placeholder="輸入 YouTube 影片網址">
+            </div>
+            <div>
+                <label for="srt-url">SRT 字幕網址 (URL):</label>
+                <input type="text" id="srt-url" placeholder="輸入 SRT 檔案網址 (可選)">
+            </div>
+            <div>
+                <label for="srt-file">或選擇本機 SRT 檔案:</label>
+                <input type="file" id="srt-file" accept=".srt">
+            </div>
+            <button id="load-content-btn">載入影片與字幕</button>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="YTSRT.js"></script>
+</body>
+</html>

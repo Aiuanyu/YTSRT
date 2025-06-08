@@ -229,3 +229,132 @@ h1, h2 {
 .file-input-area input[type="file"] {
     font-size: 0.9em;
 }
+
+/* === YT-SRT Page Styles === */
+.yt-srt-container {
+    /* max-width: 800px; */ /* 改為全寬 */
+    width: 100%;
+    margin: 0; /* 移除 auto margin */
+    padding: 20px;
+    background-color: #f0f8ff; /* AliceBlue for a light, clean look */
+    /* border-radius: 8px; */ /* 全寬時通常不需要圓角 */
+    /* box-shadow: 0 4px 12px rgba(0,0,0,0.1); */ /* 全寬時陰影效果可能不理想 */
+    box-sizing: border-box; /* 確保 padding 不會超過 viewport */
+}
+
+/* Ensure h1 within body but outside yt-srt-container is also styled if it exists */
+body > h1 {
+    text-align: center;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 20px; /* Consistent margin */
+}
+
+.yt-srt-container h1 { /* For h1 inside the container, if any */
+    text-align: center;
+    color: #2c3e50; /* Darker blue */
+    margin-bottom: 25px;
+}
+
+.input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* Slightly more gap */
+    margin-bottom: 25px;
+    padding: 20px;
+    border: 1px solid #b0c4de; /* LightSteelBlue border */
+    border-radius: 6px;
+    background-color: #ffffff;
+}
+
+.input-section div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-section label {
+    font-weight: bold;
+    font-size: 0.95em;
+    color: #34495e; /* Wet Asphalt */
+}
+
+.input-section input[type="text"],
+.input-section input[type="file"] {
+    padding: 10px 12px;
+    border: 1px solid #ced4da; /* Lighter gray border */
+    border-radius: 4px;
+    font-size: 1em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.input-section button {
+    padding: 12px 20px;
+    background-color: #3498db; /* Peter River blue */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.05em;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.input-section button:hover {
+    background-color: #2980b9; /* Belize Hole blue */
+}
+
+.video-section {
+    position: relative;
+    width: 100%;
+    /* max-width: 720px; */ /* 改為全寬 */
+    /* margin: 0 auto; */ /* 改為全寬 */
+    background-color: #000;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+#player {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    display: block; /* Ensure it behaves as a block element */
+}
+
+/* Ensure the iframe itself fills the #player container */
+#player iframe {
+    width: 100% !important; /* 強制闊度 */
+    height: 100% !important; /* 強制高度 */
+    border: 0; /* 順便移除 iframe 預設邊框 */
+}
+
+#subtitle-display {
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 12px 18px;
+    text-align: center;
+    font-size: 1.15em;
+    line-height: 1.5;
+    min-height: 2.5em; /* Enough for about two lines, adjust as needed */
+    box-sizing: border-box;
+    width: 100%;
+    font-family: Arial, sans-serif; /* Clear font for subtitles */
+    /* If you want subtitles overlayed:
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    border-radius: 4px;
+    */
+}
+
+/* General body styling if not already set */
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    background-color: #e9ecef; /* Light grey page background */
+    color: #212529; /* Default text color */
+}
