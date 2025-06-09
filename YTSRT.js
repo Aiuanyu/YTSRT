@@ -2,7 +2,9 @@ let player;
 let subtitles = [];
 let srtLoadMethod = ''; // 'url' or 'file'
 let autoLoadFromUrlParams = false; // 新增標記，指示是否因 URL 參數而自動載入
+let detectedMaxLinesInSrt = 2; // 字幕區預計顯示的最大行數，預設2行
 let timeUpdateInterval = null;
+let originalPageTitle = document.title; // 保存原始網頁標題
 
 const youtubeUrlInput = document.getElementById('youtube-url');
 const srtUrlInput = document.getElementById('srt-url');
@@ -64,6 +66,7 @@ function initializePlayer(videoId) {
 function onPlayerReady(event) {
     console.log('YT Player ready.');
     const playerInstance = event.target;
+    updateBrowserStateAndTitle(playerInstance); // 初始標題與歷史紀錄更新
 
     // 如果是因 URL 參數自動載入，或者字幕已載入（手動載入情況），則嘗試播放
     if (autoLoadFromUrlParams || subtitles.length > 0) {
@@ -82,14 +85,26 @@ function onPlayerReady(event) {
     }
 }
 function onPlayerStateChange(event) {
+    const playerInstance = event.target;
     if (event.data === YT.PlayerState.PLAYING) {
         if (timeUpdateInterval) clearInterval(timeUpdateInterval);
         timeUpdateInterval = setInterval(displayCurrentSubtitle, 200);
+        // 確保標題已更新 (可能 UNSTARTED 未觸發或被跳過)
+        // updateBrowserStateAndTitle 內部有檢查，避免重複 pushState
+        const videoData = playerInstance.getVideoData();
+        if (videoData && videoData.title && !document.title.includes(videoData.title)) {
+            updateBrowserStateAndTitle(playerInstance);
+        }
+    } else if (event.data === YT.PlayerState.UNSTARTED) {
+        // UNSTARTED 狀態通常在 loadVideoById 後出現，這時影片資料應已可用
+        updateBrowserStateAndTitle(playerInstance);
     } else {
         if (timeUpdateInterval) clearInterval(timeUpdateInterval);
         timeUpdateInterval = null;
     }
 }
+
+
 
 loadContentBtn.addEventListener('click', handleLoadContent);
 srtUrlInput.addEventListener('input', () => {
@@ -115,18 +130,29 @@ function handleLoadContent() {
     }
 
     subtitles = [];
-    subtitleDisplayDiv.innerHTML = '';
+    detectedMaxLinesInSrt = 2; // 重設為預設值
+    // 若 videoId 為空 (表示清空輸入或無效)，則重設標題和 URL
+    if (!videoId) {
+        updateBrowserStateAndTitle(null); // 傳入 null 來重設
+    }
+    updateSubtitleDisplayEmptyState(); // 更新字幕區為預設高度
+
     if (timeUpdateInterval) clearInterval(timeUpdateInterval);
 
     initializePlayer(videoId);
 
     if (srtLoadMethod === 'url' && srtUrlInput.value.trim() !== '') {
         fetchSrtFromUrl(srtUrlInput.value.trim());
+
     } else if (srtLoadMethod === 'file' && srtFileInput.files.length > 0) {
         loadSrtFromFile(srtFileInput.files[0]);
     } else {
         console.log('未提供 SRT 字幕，僅播放影片。');
-        if (player && player.playVideo) player.playVideo();
+        if (player && player.playVideo && videoId) { // 只有在有 videoId 時才播放
+             player.playVideo();
+        }
+        // 如果 videoId 存在但無字幕，也更新瀏覽器狀態
+        if (videoId && player) updateBrowserStateAndTitle(player);
     }
 }
 
@@ -199,13 +225,32 @@ function parseAndSetSubtitles(srtContent) {
         if (!Array.isArray(parsedSubtitles)) throw new Error("SRT 解析未返回陣列。");
         parsedSubtitles.sort((a, b) => a.start - b.start);
         subtitles = parsedSubtitles; // 將解析後的字幕賦值給全域變數
-        console.log('SRT 載入並解析完成:', subtitles.length, '條字幕');
+
+        if (subtitles.length > 0) {
+            let maxLines = 0;
+            for (const sub of subtitles) {
+                const linesInSub = (sub.text.match(/\n/g) || []).length + 1;
+                if (linesInSub > maxLines) {
+                    maxLines = linesInSub;
+                }
+            }
+            detectedMaxLinesInSrt = Math.max(1, maxLines); // 至少顯示1行
+        } else {
+            detectedMaxLinesInSrt = 2; // 若無字幕，則恢復預設2行
+        }
+        console.log(`SRT 載入並解析完成: ${subtitles.length} 條字幕，偵測到最多 ${detectedMaxLinesInSrt} 行。`);
+
+        // 立即更新字幕區的預留空白高度
+        updateSubtitleDisplayEmptyState();
+
         // 與播放器的互動（如開始播放或管理時間間隔）
         // 由 onPlayerReady 和 onPlayerStateChange 函數處理。
     } catch (error) {
         console.error('解析 SRT 內容失敗:', error);
         alert(`解析 SRT 內容失敗: ${error.message}`);
         subtitles = [];
+        detectedMaxLinesInSrt = 2; // 錯誤時恢復預設
+        updateSubtitleDisplayEmptyState(); // 更新字幕區
     }
 }
 
@@ -259,14 +304,82 @@ function parseSRT(content) {
     return subs;
 }
 
+// 更新字幕顯示區為空白佔位狀態
+function updateSubtitleDisplayEmptyState() {
+    if (subtitleDisplayDiv) {
+        let placeholderText = '';
+        if (detectedMaxLinesInSrt > 0) {
+            // 產生 detectedMaxLinesInSrt 行的 &nbsp;，用 <br> 分隔
+            placeholderText = Array.from({ length: detectedMaxLinesInSrt }, () => '&nbsp;').join('<br>');
+        }
+        subtitleDisplayDiv.innerHTML = placeholderText;
+    }
+}
+
 function displayCurrentSubtitle() {
     if (!player || typeof player.getCurrentTime !== 'function' || subtitles.length === 0) {
-        subtitleDisplayDiv.innerHTML = '&nbsp;<br>&nbsp;'; // 持續顯示，避免跳動
+        updateSubtitleDisplayEmptyState();
         return;
     }
     const currentTime = player.getCurrentTime();
     const activeSub = subtitles.find(sub => currentTime >= sub.start && currentTime < sub.end);
-    subtitleDisplayDiv.innerHTML = activeSub ? activeSub.text.replace(/\n/g, '<br>') : '&nbsp;<br>&nbsp;'; // 持續顯示，避免跳動
+
+    if (activeSub) {
+        const textLinesArray = activeSub.text.split('\n');
+        let displayText = textLinesArray.map(line => line.trim() === '' ? '&nbsp;' : line).join('<br>');
+        const actualLines = textLinesArray.length;
+        const linesToPad = detectedMaxLinesInSrt - actualLines;
+
+        if (linesToPad > 0) {
+            for (let i = 0; i < linesToPad; i++) {
+                displayText += '<br>&nbsp;';
+            }
+        }
+        subtitleDisplayDiv.innerHTML = displayText;
+    } else {
+        updateSubtitleDisplayEmptyState();
+    }
+}
+
+// --- 更新網頁標題與瀏覽器歷史紀錄 ---
+function updateBrowserStateAndTitle(playerInstance) {
+    let videoTitle = '';
+    const currentYtUrl = youtubeUrlInput.value.trim();
+
+    if (playerInstance && typeof playerInstance.getVideoData === 'function' && currentYtUrl) {
+        const videoData = playerInstance.getVideoData();
+        videoTitle = videoData ? videoData.title : '';
+    }
+
+    const newPageTitle = (videoTitle && currentYtUrl) ? `[掛字幕] YT：${videoTitle}` : originalPageTitle;
+    document.title = newPageTitle;
+
+    let newUrlPathAndQuery = window.location.pathname;
+
+    if (currentYtUrl) {
+        newUrlPathAndQuery += `?yt=${encodeURIComponent(currentYtUrl)}`;
+        const currentSrtUrl = srtUrlInput.value.trim();
+        if (srtLoadMethod === 'url' && currentSrtUrl) {
+            newUrlPathAndQuery += `&srt=${encodeURIComponent(currentSrtUrl)}`;
+        }
+    }
+    // else: 如果 currentYtUrl 是空的，newUrlPathAndQuery 就只有 pathname，無參數
+
+    const fullNewUrl = `${window.location.origin}${newUrlPathAndQuery}`;
+
+    // 只有在 URL 實際改變時才 pushState，避免重複加入相同歷史紀錄
+    if (window.location.href !== fullNewUrl) {
+        try {
+            window.history.pushState(
+                { yt: currentYtUrl, srt: (srtLoadMethod === 'url' ? srtUrlInput.value.trim() : undefined) },
+                newPageTitle,
+                newUrlPathAndQuery
+            );
+            console.log("Browser history updated to:", newUrlPathAndQuery);
+        } catch (e) {
+            console.error("Error updating browser history:", e);
+        }
+    }
 }
 
 // --- 處理 URL 參數並自動載入 ---
@@ -299,4 +412,33 @@ window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
 document.addEventListener('DOMContentLoaded', () => {
     processUrlParametersOnLoad();
     // 其他需要在 DOM 載入後執行的初始化程式碼可以放這裡
+    originalPageTitle = document.title; // 確保在 DOMContentLoaded 時取得正確的原始標題
+});
+
+// --- 處理瀏覽器上一頁/下一頁 ---
+window.addEventListener('popstate', (event) => {
+    console.log("popstate event. Current URL:", window.location.href, "State:", event.state);
+
+    // 重新從 (已改變的) URL 讀取參數並填入輸入框
+    processUrlParametersOnLoad();
+
+    if (autoLoadFromUrlParams) { // processUrlParametersOnLoad 會設定此標記
+        if (typeof YT !== 'undefined' && typeof YT.Player === 'function' && player) { // API 已載入且播放器已初始化
+            console.log("Popstate: API ready, player exists. Auto-loading based on new URL.");
+            handleLoadContent(); // 觸發內容載入
+        } else {
+            // 若 API 未載入或播放器未建立，onYouTubeIframeAPIReady 會處理 autoLoadFromUrlParams
+            console.log("Popstate: API not ready or player not init. Auto-load will be handled by onYouTubeIframeAPIReady.");
+        }
+    } else if (!window.location.search && !event.state) { // URL 無參數且無 state (可能回到最初始狀態)
+        console.log("Popstate: No URL params and no state. Clearing inputs and resetting title.");
+        youtubeUrlInput.value = '';
+        srtUrlInput.value = '';
+        if (srtFileInput) srtFileInput.value = null;
+        srtLoadMethod = '';
+        document.title = originalPageTitle;
+        if (player && typeof player.stopVideo === 'function') player.stopVideo();
+        subtitles = [];
+        updateSubtitleDisplayEmptyState(); // 重設字幕區為預設
+    }
 });

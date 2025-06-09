@@ -346,7 +346,7 @@ body > h1 {
     min-height: 2.5em; /* Enough for about two lines, adjust as needed */
     box-sizing: border-box;
     width: 100%;
-    font-family: Calibri, tauhu-oo, sans-serif; /* Clear font for subtitles */
+    font-family: Calibri, 'Heiti TC', 'Heiti SC', '源石黑體', tauhu-oo, sans-serif; /* Clear font for subtitles */
     /* If you want subtitles overlayed:
     position: absolute;
     bottom: 10px;
