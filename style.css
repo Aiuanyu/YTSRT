@@ -365,3 +365,20 @@ body {
     background-color: #e9ecef; /* Light grey page background */
     color: #212529; /* Default text color */
 }
+
+/* Style for the subtitle preview bar in SRT-maker */
+#subtitle-preview-display {
+    background-color: rgba(0, 0, 0, 0.75); /* 跟 YTSRT 一樣的背景 */
+    color: #fff;
+    padding: 10px 15px; /* 稍微調整 padding */
+    text-align: center;
+    font-size: 1.1em; /* 稍微調整字體大小 */
+    line-height: 1.4;
+    min-height: 2.4em; /* 大約兩行的高度 */
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 0; /* 緊貼播放器下方 */
+    border-bottom-left-radius: 5px; /* 配合 video-area 的圓角 */
+    border-bottom-right-radius: 5px;
+    font-family: Calibri, 'Heiti TC', 'Heiti SC', '源石黑體', tauhu-oo, sans-serif; /* 使用易讀字體 */
+}

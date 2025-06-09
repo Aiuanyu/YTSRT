@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YT-SRT 影片播放器</title>
+    <title>YT 影片掛字幕</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://tauhu.tw/tauhu-oo.css" rel="stylesheet">
 </head>
 <body>
-    <h1>YT-SRT 影片播放器</h1>
+    <h1>YT 影片掛字幕</h1>
 
     <div class="yt-srt-container">
         <div class="video-section">
@@ -30,8 +30,13 @@
                 <input type="file" id="srt-file" accept=".srt">
             </div>
             <button id="load-content-btn">載入影片與字幕</button>
-            <div class="sharable-link-section">
-                <button id="generate-link-btn">產生分享網址</button>
+            <div class="sharable-link-section" style="margin-top: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+                <button id="generate-link-btn" style="padding: 8px 12px;">產生分享網址</button>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="share-time-checkbox" title="在分享網址中包含目前時間點">
+                    <label for="share-time-input" style="font-size: 0.9em;">指定載入時間點 (H:MM:SS):</label>
+                    <input type="text" id="share-time-input" value="0:00:00" style="width: 80px; padding: 6px 8px; font-size: 0.9em; text-align: center;">
+                </div>
                 <span id="copy-status-msg" style="margin-left: 10px; color: green; font-style: italic; display: none;">已複製！</span>
             </div>
         </div>

@@ -4,6 +4,7 @@ let srtLoadMethod = ''; // 'url' or 'file'
 let autoLoadFromUrlParams = false; // 新增標記，指示是否因 URL 參數而自動載入
 let detectedMaxLinesInSrt = 2; // 字幕區預計顯示的最大行數，預設2行
 let timeUpdateInterval = null;
+let startAtTimeFromUrl = null; // 從 URL 參數 't' 讀取到的起始秒數
 let originalPageTitle = document.title; // 保存原始網頁標題
 
 const youtubeUrlInput = document.getElementById('youtube-url');
@@ -11,6 +12,8 @@ const srtUrlInput = document.getElementById('srt-url');
 const srtFileInput = document.getElementById('srt-file');
 const loadContentBtn = document.getElementById('load-content-btn');
 const generateLinkBtn = document.getElementById('generate-link-btn');
+const shareTimeCheckbox = document.getElementById('share-time-checkbox');
+const shareTimeInput = document.getElementById('share-time-input');
 const copyStatusMsg = document.getElementById('copy-status-msg');
 
 // 頁面載入時清除檔案選擇 input，避免瀏覽器快取先前的值
@@ -66,22 +69,35 @@ function initializePlayer(videoId) {
 function onPlayerReady(event) {
     console.log('YT Player ready.');
     const playerInstance = event.target;
-    updateBrowserStateAndTitle(playerInstance); // 初始標題與歷史紀錄更新
+    updateBrowserStateAndTitle(playerInstance); // 更新標題與歷史紀錄
+
+    let seekDoneDueToTParam = false;
+    if (startAtTimeFromUrl !== null && typeof playerInstance.seekTo === 'function') {
+        playerInstance.seekTo(startAtTimeFromUrl, true);
+        console.log(`Player ready, seeking to ${startAtTimeFromUrl}s due to 't' URL parameter.`);
+        seekDoneDueToTParam = true;
+    }
 
     // 如果是因 URL 參數自動載入，或者字幕已載入（手動載入情況），則嘗試播放
     if (autoLoadFromUrlParams || subtitles.length > 0) {
         const currentState = playerInstance.getPlayerState();
         if (currentState !== YT.PlayerState.PLAYING && currentState !== YT.PlayerState.BUFFERING) {
-            console.log(`Player ready. autoLoadFromUrlParams: ${autoLoadFromUrlParams}, subtitles.length: ${subtitles.length}. Attempting to play video.`);
+            console.log(`Player ready. autoLoad: ${autoLoadFromUrlParams}, subs: ${subtitles.length}. Attempting to play.`);
             playerInstance.playVideo();
         }
-
         // 如果是因 URL 參數自動載入且已處理播放，重設標記
-        // 避免後續非自動載入的 onPlayerReady 事件錯誤地認為是自動載入
         if (autoLoadFromUrlParams) {
             autoLoadFromUrlParams = false;
             console.log("autoLoadFromUrlParams flag has been reset after onPlayerReady action.");
         }
+    }
+
+    if (shareTimeInput) { // 初始化分享時間輸入框
+        shareTimeInput.value = formatSecondsToHMS(playerInstance.getCurrentTime() || 0);
+    }
+
+    if (seekDoneDueToTParam) { // 消耗 't' 參數，避免重複使用
+        startAtTimeFromUrl = null;
     }
 }
 function onPlayerStateChange(event) {
@@ -89,8 +105,6 @@ function onPlayerStateChange(event) {
     if (event.data === YT.PlayerState.PLAYING) {
         if (timeUpdateInterval) clearInterval(timeUpdateInterval);
         timeUpdateInterval = setInterval(displayCurrentSubtitle, 200);
-        // 確保標題已更新 (可能 UNSTARTED 未觸發或被跳過)
-        // updateBrowserStateAndTitle 內部有檢查，避免重複 pushState
         const videoData = playerInstance.getVideoData();
         if (videoData && videoData.title && !document.title.includes(videoData.title)) {
             updateBrowserStateAndTitle(playerInstance);
@@ -101,6 +115,12 @@ function onPlayerStateChange(event) {
     } else {
         if (timeUpdateInterval) clearInterval(timeUpdateInterval);
         timeUpdateInterval = null;
+        // 播放停止或暫停時，也更新一次分享時間輸入框
+        if (shareTimeInput && playerInstance && typeof playerInstance.getCurrentTime === 'function') {
+            if (document.activeElement !== shareTimeInput) { // 避免覆蓋使用者正在輸入的內容
+                shareTimeInput.value = formatSecondsToHMS(playerInstance.getCurrentTime());
+            }
+        }
     }
 }
 
@@ -134,6 +154,10 @@ function handleLoadContent() {
     // 若 videoId 為空 (表示清空輸入或無效)，則重設標題和 URL
     if (!videoId) {
         updateBrowserStateAndTitle(null); // 傳入 null 來重設
+    }
+    if (shareTimeInput) { // 重設分享時間輸入框
+        shareTimeInput.value = formatSecondsToHMS(0);
+        if (shareTimeCheckbox) shareTimeCheckbox.checked = false;
     }
     updateSubtitleDisplayEmptyState(); // 更新字幕區為預設高度
 
@@ -171,6 +195,17 @@ function handleGenerateSharableLink() {
     } else if (srtLoadMethod === 'file' && srtFileInput.files.length > 0) {
         alert('本機 SRT 檔案無法附加在 URL 參數中。請上傳 SRT 檔案到網路空間並提供網址。');
         return;
+    }
+
+    if (shareTimeCheckbox && shareTimeCheckbox.checked && shareTimeInput && shareTimeInput.value) {
+        try {
+            const seconds = timeStringToSecondsHMS(shareTimeInput.value.trim());
+            if (!isNaN(seconds) && seconds >= 0) {
+                sharableUrl += `&t=${seconds}`;
+            }
+        } catch (e) {
+            console.warn("無法從分享時間輸入框解析時間:", e.message);
+        }
     }
 
     navigator.clipboard.writeText(sharableUrl).then(() => {
@@ -318,11 +353,16 @@ function updateSubtitleDisplayEmptyState() {
 
 function displayCurrentSubtitle() {
     if (!player || typeof player.getCurrentTime !== 'function' || subtitles.length === 0) {
+        if (shareTimeInput && document.activeElement !== shareTimeInput && player && typeof player.getCurrentTime === 'function') {
+             shareTimeInput.value = formatSecondsToHMS(player.getCurrentTime() || 0); // 即使無字幕也更新時間
+        }
         updateSubtitleDisplayEmptyState();
         return;
     }
     const currentTime = player.getCurrentTime();
     const activeSub = subtitles.find(sub => currentTime >= sub.start && currentTime < sub.end);
+
+    if (shareTimeInput && document.activeElement !== shareTimeInput) shareTimeInput.value = formatSecondsToHMS(currentTime);
 
     if (activeSub) {
         const textLinesArray = activeSub.text.split('\n');
@@ -387,6 +427,7 @@ function processUrlParametersOnLoad() {
     const urlParams = new URLSearchParams(window.location.search);
     const ytVideoUrl = urlParams.get('yt');
     const srtFileUrl = urlParams.get('srt');
+    const timeParam = urlParams.get('t');
 
     if (ytVideoUrl) {
         youtubeUrlInput.value = decodeURIComponent(ytVideoUrl);
@@ -398,12 +439,51 @@ function processUrlParametersOnLoad() {
         if (srtFileInput) srtFileInput.value = ''; // 清除檔案選擇
         autoLoadFromUrlParams = true; // 如果有 srt 參數，也標記為自動載入
     }
+    if (timeParam) {
+        const parsedTime = parseInt(timeParam, 10);
+        if (!isNaN(parsedTime) && parsedTime >= 0) {
+            startAtTimeFromUrl = parsedTime;
+            // autoLoadFromUrlParams 應由 yt 或 srt 參數觸發，t 參數僅為時間點
+            console.log(`URL 參數 't' 找到: ${startAtTimeFromUrl}s`);
+        }
+    }
 
     // 注意：這裡不再直接觸發 loadContentBtn.click()
     // 自動載入的邏輯移到 onYouTubeIframeAPIReady 中，確保 API 已準備好
     if (autoLoadFromUrlParams) {
         console.log("URL parameters processed. Auto-load will be handled by onYouTubeIframeAPIReady.");
     }
+}
+
+// --- 時間格式轉換輔助函數 ---
+function formatSecondsToHMS(totalSecondsFloat) {
+    const totalSeconds = Math.max(0, Math.floor(totalSecondsFloat));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+
+    const m_padded = String(m).padStart(2, '0');
+    const s_padded = String(s).padStart(2, '0');
+
+    return `${h}:${m_padded}:${s_padded}`; // 例如：0:05:32 或 1:05:32
+}
+
+function timeStringToSecondsHMS(hmsString) {
+    const parts = hmsString.split(':').map(part => parseInt(part, 10));
+    let seconds = 0;
+
+    if (parts.some(isNaN)) throw new Error(`無效的時間組件 (H:MM:SS): "${hmsString}"`);
+
+    if (parts.length === 3) { // H:MM:SS
+        seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) { // MM:SS
+        seconds = parts[0] * 60 + parts[1];
+    } else if (parts.length === 1) { // SS
+        seconds = parts[0];
+    } else {
+        throw new Error(`無效的時間格式 (H:MM:SS): "${hmsString}"`);
+    }
+    return seconds;
 }
 
 window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;

@@ -3,6 +3,7 @@ let subtitles = []; // Array to store subtitle objects { start: time, end: time,
 let currentSubtitleIndex = -1; // Index of the subtitle block currently being marked
 let timeUpdateInterval = null; // Interval timer for syncing subtitle list
 const srtFileInput = document.getElementById('srt-file-input');
+const subtitlePreviewDiv = document.getElementById('subtitle-preview-display');
 
 // This function creates an <iframe> (and YouTube player)
 // after the API code downloads.
@@ -52,6 +53,7 @@ function loadVideo() {
         if (player) {
             player.loadVideoById(videoId);
             subtitles = []; // Reset subtitles for new video
+            if (subtitlePreviewDiv) subtitlePreviewDiv.innerHTML = '&nbsp;<br>&nbsp;'; // 清空預覽
             renderSubtitleList();
             currentSubtitleIndex = -1;
             // Clear any existing sync interval
@@ -335,6 +337,7 @@ function deleteSubtitle(indexToDelete) {
 
     subtitles.splice(indexToDelete, 1); // Remove the subtitle
     renderSubtitleList(); // Re-render the list
+    // After deleting, the active subtitle might change, syncSubtitleList will handle preview
 }
 
 // Function to sync subtitle list with video time
@@ -342,6 +345,7 @@ function syncSubtitleList() {
     if (!player || typeof player.getCurrentTime !== 'function' || subtitles.length === 0) {
         return;
     }
+
 
     const currentTime = player.getCurrentTime();
     let activeIndex = -1;
@@ -374,6 +378,13 @@ function syncSubtitleList() {
             // Scroll the item into view if it's not already visible
             activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+        // 更新字幕預覽列
+        if (subtitlePreviewDiv && subtitles[activeIndex] && subtitles[activeIndex].text !== undefined) {
+            subtitlePreviewDiv.innerHTML = subtitles[activeIndex].text.replace(/\n/g, '<br>');
+        }
+    } else {
+        // 無現行字幕，清空預覽列或顯示佔位符
+        if (subtitlePreviewDiv) subtitlePreviewDiv.innerHTML = '&nbsp;<br>&nbsp;';
     }
 }
 
@@ -435,6 +446,7 @@ function handleFileSelect(event) {
             subtitles = parseSRT(content);
             subtitles.sort((a, b) => a.start - b.start); // Sort parsed subtitles
             currentSubtitleIndex = -1; // Reset marking index
+            if (subtitlePreviewDiv) subtitlePreviewDiv.innerHTML = '&nbsp;<br>&nbsp;'; // 清空預覽
             renderSubtitleList();
             // Optionally load the video if a URL is present?
             // Or clear the video? For now, just load subtitles.
@@ -447,6 +459,7 @@ function handleFileSelect(event) {
             console.error("Error parsing SRT file:", error);
             alert(`讀取 SRT 檔案時發生錯誤: ${error.message}`);
             subtitles = []; // Clear subtitles on error
+            if (subtitlePreviewDiv) subtitlePreviewDiv.innerHTML = '&nbsp;<br>&nbsp;'; // 清空預覽
             renderSubtitleList();
         } finally {
              // Reset file input so the same file can be loaded again after modification
@@ -565,4 +578,3 @@ function timeStringToSeconds(timeString) {
 
     return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
 }
-
