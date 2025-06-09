@@ -1,12 +1,15 @@
 let player;
 let subtitles = [];
 let srtLoadMethod = ''; // 'url' or 'file'
+let autoLoadFromUrlParams = false; // 新增標記，指示是否因 URL 參數而自動載入
 let timeUpdateInterval = null;
 
 const youtubeUrlInput = document.getElementById('youtube-url');
 const srtUrlInput = document.getElementById('srt-url');
 const srtFileInput = document.getElementById('srt-file');
 const loadContentBtn = document.getElementById('load-content-btn');
+const generateLinkBtn = document.getElementById('generate-link-btn');
+const copyStatusMsg = document.getElementById('copy-status-msg');
 
 // 頁面載入時清除檔案選擇 input，避免瀏覽器快取先前的值
 if (srtFileInput) {
@@ -14,9 +17,21 @@ if (srtFileInput) {
 }
 const subtitleDisplayDiv = document.getElementById('subtitle-display');
 
+
+
 // YouTube Iframe API
 function onYouTubeIframeAPIReady() {
-    // Player will be initialized after user clicks "Load"
+    console.log("YouTube API is ready.");
+    // 如果是因 URL 參數觸發，且 API 已準備好，則執行載入
+    if (autoLoadFromUrlParams) {
+        console.log("URL parameters processed. API ready. Scheduling auto-load.");
+        // 加入一個小延遲，嘗試避免與瀏覽器擴充功能可能的衝突
+        // autoLoadFromUrlParams 標記會由 onPlayerReady 重設
+        setTimeout(() => {
+            console.log("Executing delayed auto-load via handleLoadContent.");
+            handleLoadContent();
+        }, 50); // 50毫秒延遲，可以根據需要調整
+    }
 }
 
 function initializePlayer(videoId) {
@@ -48,12 +63,21 @@ function initializePlayer(videoId) {
 
 function onPlayerReady(event) {
     console.log('YT Player ready.');
-    if (subtitles.length > 0) {
-        // 僅當播放器未播放或緩衝時才播放影片
-        const playerInstance = event.target;
+    const playerInstance = event.target;
+
+    // 如果是因 URL 參數自動載入，或者字幕已載入（手動載入情況），則嘗試播放
+    if (autoLoadFromUrlParams || subtitles.length > 0) {
         const currentState = playerInstance.getPlayerState();
         if (currentState !== YT.PlayerState.PLAYING && currentState !== YT.PlayerState.BUFFERING) {
+            console.log(`Player ready. autoLoadFromUrlParams: ${autoLoadFromUrlParams}, subtitles.length: ${subtitles.length}. Attempting to play video.`);
             playerInstance.playVideo();
+        }
+
+        // 如果是因 URL 參數自動載入且已處理播放，重設標記
+        // 避免後續非自動載入的 onPlayerReady 事件錯誤地認為是自動載入
+        if (autoLoadFromUrlParams) {
+            autoLoadFromUrlParams = false;
+            console.log("autoLoadFromUrlParams flag has been reset after onPlayerReady action.");
         }
     }
 }
@@ -105,6 +129,40 @@ function handleLoadContent() {
         if (player && player.playVideo) player.playVideo();
     }
 }
+
+function handleGenerateSharableLink() {
+    const ytUrl = youtubeUrlInput.value.trim();
+    if (!ytUrl) {
+        alert('請先輸入 YouTube 影片網址。');
+        return;
+    }
+
+    let sharableUrl = `${window.location.origin}${window.location.pathname}?yt=${encodeURIComponent(ytUrl)}`;
+
+    const srtOnlineUrl = srtUrlInput.value.trim();
+    if (srtLoadMethod === 'url' && srtOnlineUrl) {
+        sharableUrl += `&srt=${encodeURIComponent(srtOnlineUrl)}`;
+    } else if (srtLoadMethod === 'file' && srtFileInput.files.length > 0) {
+        alert('本機 SRT 檔案無法附加在 URL 參數中。請上傳 SRT 檔案到網路空間並提供網址。');
+        return;
+    }
+
+    navigator.clipboard.writeText(sharableUrl).then(() => {
+        copyStatusMsg.style.display = 'inline';
+        setTimeout(() => {
+            copyStatusMsg.style.display = 'none';
+        }, 2000); // 2 秒後隱藏訊息
+    }).catch(err => {
+        console.error('複製網址失敗:', err);
+        alert('複製網址失敗，請手動複製。');
+    });
+}
+
+if (generateLinkBtn) {
+    generateLinkBtn.addEventListener('click', handleGenerateSharableLink);
+}
+
+
 
 function getYouTubeVideoId(url) {
     const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -211,4 +269,34 @@ function displayCurrentSubtitle() {
     subtitleDisplayDiv.innerHTML = activeSub ? activeSub.text.replace(/\n/g, '<br>') : '&nbsp;<br>&nbsp;'; // 持續顯示，避免跳動
 }
 
+// --- 處理 URL 參數並自動載入 ---
+function processUrlParametersOnLoad() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ytVideoUrl = urlParams.get('yt');
+    const srtFileUrl = urlParams.get('srt');
+
+    if (ytVideoUrl) {
+        youtubeUrlInput.value = decodeURIComponent(ytVideoUrl);
+        autoLoadFromUrlParams = true;
+    }
+    if (srtFileUrl) {
+        srtUrlInput.value = decodeURIComponent(srtFileUrl);
+        srtLoadMethod = 'url'; // 確保 srtLoadMethod 設定正確
+        if (srtFileInput) srtFileInput.value = ''; // 清除檔案選擇
+        autoLoadFromUrlParams = true; // 如果有 srt 參數，也標記為自動載入
+    }
+
+    // 注意：這裡不再直接觸發 loadContentBtn.click()
+    // 自動載入的邏輯移到 onYouTubeIframeAPIReady 中，確保 API 已準備好
+    if (autoLoadFromUrlParams) {
+        console.log("URL parameters processed. Auto-load will be handled by onYouTubeIframeAPIReady.");
+    }
+}
+
 window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+// 確保 DOM 完全載入後才執行 URL 參數處理，避免元素找不到
+document.addEventListener('DOMContentLoaded', () => {
+    processUrlParametersOnLoad();
+    // 其他需要在 DOM 載入後執行的初始化程式碼可以放這裡
+});
