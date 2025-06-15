@@ -5,6 +5,11 @@ let timeUpdateInterval = null; // Interval timer for syncing subtitle list
 const srtFileInput = document.getElementById('srt-file-input');
 const subtitlePreviewDiv = document.getElementById('subtitle-preview-display');
 
+// 新增：文字匯出功能相關个 DOM 元素
+const exportLineStartInput = document.getElementById('export-line-start');
+const exportLineEndInput = document.getElementById('export-line-end');
+const exportTextBtn = document.getElementById('export-text-btn');
+
 // This function creates an <iframe> (and YouTube player)
 // after the API code downloads.
 function onYouTubeIframeAPIReady() {
@@ -426,11 +431,113 @@ function exportSRT() {
     URL.revokeObjectURL(url);
 }
 
+// --- 新增：更新文字匯出按鈕个狀態同文字 ---
+function updateExportTextButton() {
+    if (!exportLineStartInput || !exportLineEndInput || !exportTextBtn) return;
+
+    const x = parseInt(exportLineStartInput.value, 10);
+    const y = parseInt(exportLineEndInput.value, 10);
+
+    if (isNaN(x) || isNaN(y) || x < 1 || y < 1) {
+        exportTextBtn.disabled = true;
+        exportTextBtn.textContent = '無效行號';
+        return;
+    }
+
+    if (y < x) {
+        exportTextBtn.disabled = true;
+        exportTextBtn.textContent = '結束行錯誤';
+        return;
+    }
+
+    exportTextBtn.disabled = false;
+    if (x === y) {
+        exportTextBtn.textContent = 'TXT 檔';
+    } else {
+        exportTextBtn.textContent = 'CSV 檔';
+    }
+}
+
+// --- 新增：處理文字匯出功能 ---
+function handleExportText() {
+    if (subtitles.length === 0) {
+        alert('無字幕內容做得匯出。');
+        return;
+    }
+
+    const x = parseInt(exportLineStartInput.value, 10);
+    const y = parseInt(exportLineEndInput.value, 10);
+
+    if (isNaN(x) || isNaN(y) || x < 1 || y < 1 || y < x) {
+        alert('請輸入有效个開始行號同結束行號。');
+        return;
+    }
+
+    let outputContent = '';
+    let fileExtension = '';
+    let mimeType = 'text/plain;charset=utf-8';
+
+    if (x === y) { // TXT 匯出
+        fileExtension = 'txt';
+        const linesToExport = subtitles.map(sub => {
+            const textLines = sub.text ? sub.text.split('\n') : [];
+            return textLines.length >= x ? textLines[x - 1] : ''; // x 係 1-indexed
+        });
+        outputContent = linesToExport.join('\n');
+    } else { // CSV 匯出
+        fileExtension = 'csv';
+        mimeType = 'text/csv;charset=utf-8';
+        const csvRows = subtitles.map(sub => {
+            const textLines = sub.text ? sub.text.split('\n') : [];
+            let rowCells = [];
+            for (let i = x; i <= y; i++) {
+                let cell = textLines.length >= i ? textLines[i - 1] : ''; // i 係 1-indexed
+                // 基本 CSV 跳脫處理：若儲存格包含逗號、雙引號或換行符，則用雙引號包起來，並將內部雙引號加倍
+                if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+                    cell = `"${cell.replace(/"/g, '""')}"`;
+                }
+                rowCells.push(cell);
+            }
+            return rowCells.join(',');
+        });
+        outputContent = csvRows.join('\n');
+    }
+
+    if (outputContent.trim() === '') {
+        alert('無符合條件个文字做得匯出。');
+        return;
+    }
+
+    const blob = new Blob([outputContent], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `subtitle_lines.${fileExtension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 // Add event listeners
 document.getElementById('load-video').addEventListener('click', loadVideo);
 document.getElementById('export-srt').addEventListener('click', exportSRT);
 document.addEventListener('keydown', handleKeyPress);
 srtFileInput.addEventListener('change', handleFileSelect); // Add listener for file input
+
+// --- 新增：為文字匯出功能加上事件監聽 ---
+if (exportLineStartInput) {
+    exportLineStartInput.addEventListener('input', updateExportTextButton);
+}
+if (exportLineEndInput) {
+    exportLineEndInput.addEventListener('input', updateExportTextButton);
+}
+if (exportTextBtn) {
+    exportTextBtn.addEventListener('click', handleExportText);
+}
+
+// --- 新增：初始化文字匯出按鈕个狀態 ---
+updateExportTextButton();
 
 // --- NEW: Function to handle file selection ---
 function handleFileSelect(event) {

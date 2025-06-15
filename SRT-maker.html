@@ -45,6 +45,19 @@
                     <!-- 字幕時間點將顯示在此 -->
                 </ul>
                 <button id="export-srt">匯出 SRT 檔案</button>
+
+                <fieldset id="export-text-options" style="margin-top: 20px;">
+                    <legend>字幕文字另存：</legend>
+                    <div>
+                        <label for="export-line-start">字幕從第</label>
+                        <input type="number" id="export-line-start" value="1" min="1" style="width: 50px; text-align: center;">
+                        <label for="export-line-end">行到第</label>
+                        <input type="number" id="export-line-end" value="1" min="1" style="width: 50px; text-align: center;">
+                        <label>行</label>
+                        <button id="export-text-btn" style="margin-left: 10px;">TXT 檔</button>
+                    </div>
+                </fieldset>
+
             </div>
         </div>
     </div>
