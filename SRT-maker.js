@@ -424,7 +424,16 @@ function exportSRT() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'subtitles.srt';
+
+    let fileName = 'subtitles.srt'; // Default filename
+    if (player && typeof player.getVideoData === 'function') {
+        const videoId = player.getVideoData().video_id;
+        if (videoId) {
+            fileName = `${videoId}.srt`;
+        }
+    }
+    a.download = fileName;
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
