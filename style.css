@@ -341,7 +341,7 @@ body > h1 {
     color: #fff;
     padding: 12px 18px;
     text-align: center;
-    font-size: 1.15em;
+    font-size: clamp(1.15em, 2.5vw, 2.2em);
     line-height: 1.5;
     min-height: 2.5em; /* Enough for about two lines, adjust as needed */
     box-sizing: border-box;
